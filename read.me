@@ -1,0 +1,219 @@
+# QuantTerminal Pro 📈
+
+A Bloomberg-style financial dashboard with live market data, AI-powered stock analysis, portfolio tracking, and quantitative risk tools — built with Python + vanilla HTML/CSS/JS.
+
+![QuantTerminal Screenshot](screenshot.png)
+
+## ✨ Features
+
+| Feature | Description |
+|---|---|
+| **Live Market Data** | Real-time prices via yfinance — US, India (NSE/BSE), UK, Crypto, Forex, Commodities |
+| **Interactive Charts** | Price chart (1D/5D/1M/6M) with RSI(14) indicator overlay |
+| **Portfolio Tracker** | Add holdings, track live P&L, export to CSV |
+| **DCF Valuation** | Discounted Cash Flow calculator with WACC, growth assumptions, and intrinsic value |
+| **Risk Metrics** | VaR (1D/1W, 95%), Sharpe Ratio, Sortino Ratio, Beta, Max Drawdown |
+| **Monte Carlo** | 500 simulated price paths over 30 trading days |
+| **Efficient Frontier** | Markowitz MPT — 800 random portfolios, max Sharpe highlighted |
+| **Stress Testing** | Historical crash scenarios (2008 GFC, COVID, 2022) via beta sensitivity |
+| **SMA Backtesting** | Configurable SMA crossover strategy on 2 years of data |
+| **News Feed** | Latest headlines per stock via Yahoo Finance |
+| **AI Audit** | Google Gemini-powered bull/bear analysis of selected stock |
+| **Mobile Responsive** | Works on phone, tablet, and desktop |
+
+## 🛠 Tech Stack
+
+- **Backend**: Python 3.x · Flask · yfinance · gunicorn
+- **Frontend**: Vanilla HTML/CSS/JavaScript (no frameworks)
+- **Data**: Yahoo Finance public API via yfinance
+- **AI**: Google Gemini 1.5 Flash (user provides own API key)
+- **Deployment**: Railway.app
+
+## ⚡ Quick Start (Local)
+
+### 1. Clone the repo
+```bash
+git clone https://github.com/YOUR_USERNAME/quant-terminal.git
+cd quant-terminal
+```
+
+### 2. Install Python dependencies
+```bash
+pip install -r requirements.txt
+```
+
+### 3. Start the backend
+```bash
+python server.py
+```
+You should see:
+```
+QuantTerminal Backend → http://localhost:5000
+```
+
+### 4. Open the dashboard
+Open `index.html` in VS Code → right-click → **Open with Live Server**
+
+Or just drag `index.html` into Chrome.
+
+## 🌐 Deployment (Railway)
+
+See **DEPLOY.md** for full step-by-step Railway deployment guide.
+
+Live URL: **https://YOUR-APP.railway.app**
+
+## 🔍 How to Use
+
+### Search
+Type any ticker in the search bar:
+- `AAPL` — US stock
+- `RELIANCE.NS` — Indian NSE stock
+- `BARC.L` — UK LSE stock
+- `BTC-USD` — Cryptocurrency
+- `EURUSD=X` — Forex pair
+- `GC=F` — Gold futures
+
+### AI Audit
+Go to the **AI Audit** tab → enter your Google Gemini API key (free at [aistudio.google.com](https://aistudio.google.com)) → click Run. Your key is never stored.
+
+### DCF Valuation
+Go to **DCF** tab → select a stock → adjust WACC and growth assumptions → click Calculate. The tool shows intrinsic value vs current price with full year-by-year breakdown.
+
+## ⚠️ Limitations & Disclaimers
+
+- Uses Yahoo Finance public API via yfinance — data may be delayed
+- **Not a production trading system** — no order execution
+- No transaction costs, slippage, or taxes in backtesting
+- DCF is highly sensitive to WACC (±1% = ±15% valuation change)
+- Risk metrics (VaR, Sharpe) use simplified estimates
+- AI audit may contain inaccuracies — always verify independently
+- **This is not investment advice**
+
+## 📁 Project Structure
+
+```
+quant-terminal/
+├── index.html          # Frontend — entire UI
+├── server.py           # Backend — Flask API
+├── requirements.txt    # Python dependencies
+├── Procfile            # Railway/gunicorn config
+├── README.md           # This file
+└── .gitignore
+```
+
+## 🤝 Contact
+
+Built by [YOUR NAME] · [LinkedIn URL] · [Email]
+
+---
+
+*QuantTerminal v3.1 — Educational project. Not financial advice.*# QuantTerminal Pro 📈
+
+A Bloomberg-style financial dashboard with live market data, AI-powered stock analysis, portfolio tracking, and quantitative risk tools — built with Python + vanilla HTML/CSS/JS.
+
+![QuantTerminal Screenshot](screenshot.png)
+
+## ✨ Features
+
+| Feature | Description |
+|---|---|
+| **Live Market Data** | Real-time prices via yfinance — US, India (NSE/BSE), UK, Crypto, Forex, Commodities |
+| **Interactive Charts** | Price chart (1D/5D/1M/6M) with RSI(14) indicator overlay |
+| **Portfolio Tracker** | Add holdings, track live P&L, export to CSV |
+| **DCF Valuation** | Discounted Cash Flow calculator with WACC, growth assumptions, and intrinsic value |
+| **Risk Metrics** | VaR (1D/1W, 95%), Sharpe Ratio, Sortino Ratio, Beta, Max Drawdown |
+| **Monte Carlo** | 500 simulated price paths over 30 trading days |
+| **Efficient Frontier** | Markowitz MPT — 800 random portfolios, max Sharpe highlighted |
+| **Stress Testing** | Historical crash scenarios (2008 GFC, COVID, 2022) via beta sensitivity |
+| **SMA Backtesting** | Configurable SMA crossover strategy on 2 years of data |
+| **News Feed** | Latest headlines per stock via Yahoo Finance |
+| **AI Audit** | Google Gemini-powered bull/bear analysis of selected stock |
+| **Mobile Responsive** | Works on phone, tablet, and desktop |
+
+## 🛠 Tech Stack
+
+- **Backend**: Python 3.x · Flask · yfinance · gunicorn
+- **Frontend**: Vanilla HTML/CSS/JavaScript (no frameworks)
+- **Data**: Yahoo Finance public API via yfinance
+- **AI**: Google Gemini 1.5 Flash (user provides own API key)
+- **Deployment**: Railway.app
+
+## ⚡ Quick Start (Local)
+
+### 1. Clone the repo
+```bash
+git clone https://github.com/YOUR_USERNAME/quant-terminal.git
+cd quant-terminal
+```
+
+### 2. Install Python dependencies
+```bash
+pip install -r requirements.txt
+```
+
+### 3. Start the backend
+```bash
+python server.py
+```
+You should see:
+```
+QuantTerminal Backend → http://localhost:5000
+```
+
+### 4. Open the dashboard
+Open `index.html` in VS Code → right-click → **Open with Live Server**
+
+Or just drag `index.html` into Chrome.
+
+## 🌐 Deployment (Railway)
+
+See **DEPLOY.md** for full step-by-step Railway deployment guide.
+
+Live URL: **https://YOUR-APP.railway.app**
+
+## 🔍 How to Use
+
+### Search
+Type any ticker in the search bar:
+- `AAPL` — US stock
+- `RELIANCE.NS` — Indian NSE stock
+- `BARC.L` — UK LSE stock
+- `BTC-USD` — Cryptocurrency
+- `EURUSD=X` — Forex pair
+- `GC=F` — Gold futures
+
+### AI Audit
+Go to the **AI Audit** tab → enter your Google Gemini API key (free at [aistudio.google.com](https://aistudio.google.com)) → click Run. Your key is never stored.
+
+### DCF Valuation
+Go to **DCF** tab → select a stock → adjust WACC and growth assumptions → click Calculate. The tool shows intrinsic value vs current price with full year-by-year breakdown.
+
+## ⚠️ Limitations & Disclaimers
+
+- Uses Yahoo Finance public API via yfinance — data may be delayed
+- **Not a production trading system** — no order execution
+- No transaction costs, slippage, or taxes in backtesting
+- DCF is highly sensitive to WACC (±1% = ±15% valuation change)
+- Risk metrics (VaR, Sharpe) use simplified estimates
+- AI audit may contain inaccuracies — always verify independently
+- **This is not investment advice**
+
+## 📁 Project Structure
+
+```
+quant-terminal/
+├── index.html          # Frontend — entire UI
+├── server.py           # Backend — Flask API
+├── requirements.txt    # Python dependencies
+├── Procfile            # Railway/gunicorn config
+├── README.md           # This file
+└── .gitignore
+```
+
+## 🤝 Contact
+
+Built by [YOUR NAME] · [LinkedIn URL] · [Email]
+
+---
+
+*QuantTerminal v3.1 — Educational project. Not financial advice.*
