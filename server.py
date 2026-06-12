@@ -82,19 +82,64 @@ def get_backtest(symbol):
 @app.route('/news/<symbol>')
 def get_news(symbol):
     try:
-        ticker = yf.Ticker(symbol, session=session)
-        news   = ticker.news or []
-        items  = []
-        for n in news[:8]:
-            items.append({
-                "title":     n.get("title",""),
-                "publisher": n.get("publisher",""),
-                "link":      n.get("link",""),
-                "time":      n.get("providerPublishTime", 0)
-            })
-        return jsonify({"news": items})
+        ticker = yf.Ticker(symbol)
+        items = []
+
+        # Method 1: try ticker.news (works on newer yfinance)
+        try:
+            news = ticker.news or []
+            for n in news[:8]:
+                # Handle both old and new yfinance news format
+                content = n.get('content', {})
+                if content:
+                    title = content.get('title', '')
+                    link  = content.get('canonicalUrl', {}).get('url', '') or content.get('clickThroughUrl', {}).get('url', '')
+                    pub   = content.get('provider', {}).get('displayName', '')
+                    ptime = 0
+                else:
+                    title = n.get('title', '')
+                    link  = n.get('link', '') or n.get('url', '')
+                    pub   = n.get('publisher', '') or n.get('source', '')
+                    ptime = n.get('providerPublishTime', 0)
+
+                if title:
+                    items.append({
+                        'title': title,
+                        'publisher': pub,
+                        'link': link,
+                        'time': ptime
+                    })
+        except Exception:
+            pass
+
+        # Method 2: fallback to RSS feed if no news found
+        if not items:
+            clean = symbol.replace('.NS', '').replace('.L', '').replace('-USD', '').replace('=X', '').replace('=F', '')
+            rss_urls = [
+                f'https://feeds.finance.yahoo.com/rss/2.0/headline?s={symbol}&region=US&lang=en-US',
+                f'https://news.google.com/rss/search?q={clean}+stock&hl=en-IN&gl=IN&ceid=IN:en',
+            ]
+            import feedparser, urllib.request
+            for rss in rss_urls:
+                try:
+                    req = urllib.request.Request(rss, headers={'User-Agent': 'Mozilla/5.0'})
+                    response = urllib.request.urlopen(req, timeout=5)
+                    feed = feedparser.parse(response.read())
+                    for entry in feed.entries[:8]:
+                        items.append({
+                            'title': entry.get('title', ''),
+                            'publisher': entry.get('source', {}).get('title', 'Yahoo Finance') if hasattr(entry.get('source', {}), 'get') else 'News',
+                            'link': entry.get('link', ''),
+                            'time': 0
+                        })
+                    if items:
+                        break
+                except Exception:
+                    continue
+
+        return jsonify({'news': items})
     except Exception as e:
-        return jsonify({"news": [], "error": str(e)}), 500
+        return jsonify({'news': [], 'error': str(e)}), 500
 
 # ── Search ─────────────────────────────────────────────────────────────────────
 @app.route('/search/<query>')
