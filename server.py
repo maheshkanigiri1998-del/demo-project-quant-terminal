@@ -82,62 +82,60 @@ def get_backtest(symbol):
 @app.route('/news/<symbol>')
 def get_news(symbol):
     try:
-        ticker = yf.Ticker(symbol)
         items = []
+        ticker = yf.Ticker(symbol)
 
-        # Method 1: try ticker.news (works on newer yfinance)
+        # Try new yfinance format first
         try:
-            news = ticker.news or []
-            for n in news[:8]:
-                # Handle both old and new yfinance news format
+            raw_news = ticker.news or []
+            for n in raw_news[:8]:
+                # New format has a 'content' nested dict
                 content = n.get('content', {})
-                if content:
+                if content and isinstance(content, dict):
                     title = content.get('title', '')
-                    link  = content.get('canonicalUrl', {}).get('url', '') or content.get('clickThroughUrl', {}).get('url', '')
-                    pub   = content.get('provider', {}).get('displayName', '')
-                    ptime = 0
+                    url_obj = content.get('canonicalUrl') or content.get('clickThroughUrl') or {}
+                    link = url_obj.get('url', '') if isinstance(url_obj, dict) else ''
+                    pub = ''
+                    prov = content.get('provider', {})
+                    if isinstance(prov, dict):
+                        pub = prov.get('displayName', '')
                 else:
+                    # Old yfinance format
                     title = n.get('title', '')
                     link  = n.get('link', '') or n.get('url', '')
-                    pub   = n.get('publisher', '') or n.get('source', '')
-                    ptime = n.get('providerPublishTime', 0)
+                    pub   = n.get('publisher', '')
 
                 if title:
                     items.append({
                         'title': title,
                         'publisher': pub,
                         'link': link,
-                        'time': ptime
+                        'time': n.get('providerPublishTime', 0)
                     })
         except Exception:
             pass
 
-        # Method 2: fallback to RSS feed if no news found
+        # Fallback: Google News RSS if yfinance gave nothing
         if not items:
-            clean = symbol.replace('.NS', '').replace('.L', '').replace('-USD', '').replace('=X', '').replace('=F', '')
-            rss_urls = [
-                f'https://feeds.finance.yahoo.com/rss/2.0/headline?s={symbol}&region=US&lang=en-US',
-                f'https://news.google.com/rss/search?q={clean}+stock&hl=en-IN&gl=IN&ceid=IN:en',
-            ]
-            import feedparser, urllib.request
-            for rss in rss_urls:
-                try:
-                    req = urllib.request.Request(rss, headers={'User-Agent': 'Mozilla/5.0'})
-                    response = urllib.request.urlopen(req, timeout=5)
-                    feed = feedparser.parse(response.read())
-                    for entry in feed.entries[:8]:
-                        items.append({
-                            'title': entry.get('title', ''),
-                            'publisher': entry.get('source', {}).get('title', 'Yahoo Finance') if hasattr(entry.get('source', {}), 'get') else 'News',
-                            'link': entry.get('link', ''),
-                            'time': 0
-                        })
-                    if items:
-                        break
-                except Exception:
-                    continue
+            import feedparser
+            clean = (symbol.replace('.NS','').replace('.BO','')
+                           .replace('.L','').replace('-USD','')
+                           .replace('=X','').replace('=F',''))
+            rss = f'https://news.google.com/rss/search?q={clean}+stock+finance&hl=en-IN&gl=IN&ceid=IN:en'
+            try:
+                feed = feedparser.parse(rss)
+                for entry in feed.entries[:8]:
+                    items.append({
+                        'title': entry.get('title', ''),
+                        'publisher': 'Google News',
+                        'link': entry.get('link', ''),
+                        'time': 0
+                    })
+            except Exception:
+                pass
 
         return jsonify({'news': items})
+
     except Exception as e:
         return jsonify({'news': [], 'error': str(e)}), 500
 
