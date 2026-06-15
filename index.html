@@ -520,7 +520,7 @@ canvas.rsichart{width:100%;height:100%;}
           <button class="rbtn btn-p" onclick="runGemini()">▶ Run AI Audit on Selected Stock</button>
           <div class="ai-box" id="aiBox"></div>
           <div class="limit-box" style="margin-top:8px;">
-            <strong>⚠ Limitations:</strong> AI may produce inaccurate figures. Always verify independently. Not investment advice. Model: gemini-1.5-flash.
+            <strong>⚠ Limitations:</strong> AI may produce inaccurate figures. Always verify independently. Not investment advice. Model: gemini-2.5-flash.
           </div>
         </div>
       </div>
@@ -546,7 +546,7 @@ canvas.rsichart{width:100%;height:100%;}
 // ─────────────────────────────────────────────
 const API = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
   ? 'http://localhost:5000'
-  : 'https://demo-project-quant-terminal-production.up.railway.app';   // ← replace after deploy
+  :  demo-project-quant-terminal-production.up.railway.app  // ← replace after deploy
 
 document.getElementById('apiUrlDisplay').textContent = API;
 
@@ -1152,7 +1152,7 @@ Provide:
 
 Max 200 words. No generic disclaimers. Be specific and direct.`;
   try{
-    const url=`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${key}`;
+    const url=`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${key}`;
     const r=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({contents:[{parts:[{text:prompt}]}]})});
     const data=await r.json();
     if(data.error)throw new Error(data.error.message);
