@@ -1,3 +1,5 @@
+import os
+import requests
 from flask import Flask, jsonify, request
 from flask_cors import CORS
 import yfinance as yf
@@ -7,78 +9,60 @@ import json
 app = Flask(__name__)
 CORS(app)
 
-# ── Quote ──────────────────────────────────────────────────────────────────────
+# ── Quote (Twelve Data Integration) ──────────────────────────────────────────
 @app.route('/quote/<symbol>')
 def get_quote(symbol):
     try:
-        ticker = yf.Ticker(symbol)
+        # Securely read the API key from system environment variables
+        api_key = os.environ.get("TWELVE_DATA_API_KEY", "YOUR_LOCAL_TEST_KEY_HERE")
         
-        # 1. Safely extract fast_info values
-        try:
-            info = ticker.fast_info
-            price = getattr(info, "last_price", None)
-            prev  = getattr(info, "previous_close", None)
-            open_p = getattr(info, "open", None)
-            high   = getattr(info, "day_high", None)
-            low    = getattr(info, "day_low", None)
-            vol    = getattr(info, "last_volume", None)
-            cap    = getattr(info, "market_cap", None)
-            w52h   = getattr(info, "year_high", None)
-            w52l   = getattr(info, "year_low", None)
-            avgVol = getattr(info, "three_month_average_volume", None)
-        except Exception:
-            info, price, prev, open_p, high, low, vol, cap, w52h, w52l, avgVol = [None] * 11
+        # Convert yfinance ticker format to Twelve Data format (e.g., BEL.NS -> BEL)
+        clean_symbol = symbol.split('.')[0]
+        exchange = "NSE" if symbol.endswith(".NS") else ""
+        
+        # 1. Fetch Live Quote Data
+        quote_url = f"https://api.twelvedata.com/quote?symbol={clean_symbol}&exchange={exchange}&apikey={api_key}"
+        quote_res = requests.get(quote_url).json()
+        
+        if "status" in quote_res and quote_res["status"] == "error":
+            raise Exception(quote_res.get("message", "API Error"))
 
-        # 2. Handle history fetching with a resilient fallback if rate-limited
+        # 2. Fetch Time Series Data for the mini-chart sparkline
+        time_series_url = f"https://api.twelvedata.com/time_series?symbol={clean_symbol}&exchange={exchange}&interval=1day&outputsize=5&apikey={api_key}"
+        ts_res = requests.get(time_series_url).json()
+        
         prices = []
-        try:
-            hist = ticker.history(period="5d", interval="1d")
-            if not hist.empty:
-                prices = hist['Close'].dropna().tolist()
-        except Exception:
-            pass
+        if "values" in ts_res:
+            # Twelve data returns newest first, so we reverse it to match your chart format
+            prices = [float(day["close"]) for day in reversed(ts_res["values"])]
 
-        # 3. Cloud Fallback: If Yahoo blocked our server IP completely, inject safe fallbacks so dashboard doesn't break
-        if not price:
-            # Safe static fallback valuations to keep your dashboard visually alive when cloud IPs are blocked
-            fallbacks = {
-                "HDFCBANK.NS": {"p": 1779.30, "v": 1790.00},
-                "RELIANCE.NS": {"p": 1320.40, "v": 1325.00},
-                "VEDL.NS":     {"p": 281.70,  "v": 290.00},
-                "ITC.NS":      {"p": 289.85,  "v": 291.00},
-                "SUZLON.NS":   {"p": 58.38,   "v": 59.20},
-                "BEL.NS":      {"p": 425.35,  "v": 430.00},
-                "AAPL":        {"p": 297.01,  "v": 296.00},
-                "NVDA":        {"p": 288.65,  "v": 290.00},
-                "BARC.L":      {"p": 515.70,  "v": 516.00}
-            }
-            fb = fallbacks.get(symbol.upper(), {"p": 100.00, "v": 98.00})
-            price, prev, open_p, high, low = fb["p"], fb["v"], fb["p"], fb["p"]*1.01, fb["p"]*0.99
-            prices = [prev, prev*1.005, prev*0.99, prev*1.01, price]
+        # Extract values safely
+        price = float(quote_res.get("close", 0))
+        prev_close = float(quote_res.get("previous_close", 0)) if quote_res.get("previous_close") else price
 
         return jsonify({
             "price":     price,
-            "prevClose": prev,
-            "open":      open_p,
-            "high":      high,
-            "low":       low,
-            "vol":       vol or 1500000,
-            "cap":       cap or 5000000000,
-            "currency":  "USD" if not symbol.endswith(".NS") else "INR",
-            "name":      symbol,
+            "prevClose": prev_close,
+            "open":      float(quote_res.get("open", price)),
+            "high":      float(quote_res.get("high", price)),
+            "low":       float(quote_res.get("low", price)),
+            "vol":       int(quote_res.get("volume", 0)) if quote_res.get("volume") else 1000000,
+            "cap":       int(quote_res.get("market_cap", 0)) if quote_res.get("market_cap") else 5000000000,
+            "currency":  "INR" if exchange == "NSE" else "USD",
+            "name":      quote_res.get("name", symbol),
             "pe":        22.5,
             "eps":       5.2,
             "divYield":  0.015,
             "beta":      1.1,
-            "w52h":      w52h or (price * 1.2),
-            "w52l":      w52l or (price * 0.8),
-            "avgVol":    avgVol or 2000000,
+            "w52h":      float(quote_res.get("fifty_two_week", {}).get("high", price * 1.2)),
+            "w52l":      float(quote_res.get("fifty_two_week", {}).get("low", price * 0.8)),
+            "avgVol":    int(quote_res.get("average_volume", 2000000)) if quote_res.get("average_volume") else 2000000,
             "rev":       None,
             "sector":    "Financial/Tech",
-            "prices":    prices
+            "prices":    prices if prices else [prev_close, price]
         })
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": str(e)}), 500 
 
 # ── History ────────────────────────────────────────────────────────────────────
 @app.route('/history/<symbol>')
