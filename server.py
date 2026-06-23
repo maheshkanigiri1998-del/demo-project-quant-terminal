@@ -3,22 +3,16 @@ from flask_cors import CORS
 import yfinance as yf
 import feedparser
 import json
-import requests
 
 app = Flask(__name__)
 CORS(app)
-
-# ── Browser Disguise Configuration ──────────────────────────────────────────
-# This session setup prevents Yahoo Finance from blocking cloud-hosted servers
-session = requests.Session()
-session.headers.update({'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'})
 
 # ── Quote ──────────────────────────────────────────────────────────────────────
 @app.route('/quote/<symbol>')
 def get_quote(symbol):
     try:
-        ticker = yf.Ticker(symbol, session=session)
-        info   = ticker.info
+        ticker = yf.Ticker(symbol)
+        info   = ticker.fast_info
         hist   = ticker.history(period="5d", interval="1d")
         prices = hist['Close'].dropna().tolist()
 
@@ -28,25 +22,25 @@ def get_quote(symbol):
                  or (prices[-2] if len(prices) >= 2 else None))
 
         return jsonify({
-            "price":     price,
-            "prevClose": prev,
-            "open":      info.get("open")     or info.get("regularMarketOpen"),
-            "high":      info.get("dayHigh")  or info.get("regularMarketDayHigh"),
-            "low":       info.get("dayLow")   or info.get("regularMarketDayLow"),
-            "vol":       info.get("volume")   or info.get("regularMarketVolume"),
-            "cap":       info.get("marketCap"),
-            "currency":  info.get("currency", "USD"),
-            "name":      info.get("shortName") or info.get("longName") or symbol,
-            "pe":        info.get("trailingPE"),
-            "eps":       info.get("trailingEps"),
-            "divYield":  info.get("dividendYield"),
-            "beta":      info.get("beta"),
-            "w52h":      info.get("fiftyTwoWeekHigh"),
-            "w52l":      info.get("fiftyTwoWeekLow"),
-            "avgVol":    info.get("averageVolume") or info.get("averageDailyVolume10Day"),
-            "rev":       info.get("totalRevenue"),
-            "sector":    info.get("sector",""),
-            "prices":    prices
+            "price":    price,
+            "prevClose":prev,
+            "open":     info.get("open")     or info.get("regularMarketOpen"),
+            "high":     info.get("dayHigh")  or info.get("regularMarketDayHigh"),
+            "low":      info.get("dayLow")   or info.get("regularMarketDayLow"),
+            "vol":      info.get("volume")   or info.get("regularMarketVolume"),
+            "cap":      info.get("marketCap"),
+            "currency": info.get("currency", "USD"),
+            "name":     info.get("shortName") or info.get("longName") or symbol,
+            "pe":       info.get("trailingPE"),
+            "eps":      info.get("trailingEps"),
+            "divYield": info.get("dividendYield"),
+            "beta":     info.get("beta"),
+            "w52h":     info.get("fiftyTwoWeekHigh"),
+            "w52l":     info.get("fiftyTwoWeekLow"),
+            "avgVol":   info.get("averageVolume") or info.get("averageDailyVolume10Day"),
+            "rev":      info.get("totalRevenue"),
+            "sector":   info.get("sector",""),
+            "prices":   prices
         })
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -58,7 +52,7 @@ def get_history(symbol):
         period   = request.args.get('period', '1mo')
         imap     = {'1d':'5m','5d':'15m','1mo':'1d','6mo':'1wk'}
         interval = imap.get(period, '1d')
-        ticker   = yf.Ticker(symbol, session=session)
+        ticker   = yf.Ticker(symbol)
         hist     = ticker.history(period=period, interval=interval)
         closes   = hist['Close'].dropna().tolist()
         # RSI calculation server-side
@@ -71,7 +65,7 @@ def get_history(symbol):
 @app.route('/backtest/<symbol>')
 def get_backtest(symbol):
     try:
-        ticker = yf.Ticker(symbol, session=session)
+        ticker = yf.Ticker(symbol)
         hist   = ticker.history(period="2y", interval="1d")
         prices = hist['Close'].dropna().tolist()
         return jsonify({"prices": prices, "count": len(prices)})
@@ -138,19 +132,18 @@ def get_news(symbol):
 
     except Exception as e:
         return jsonify({'news': [], 'error': str(e)}), 500
-
 # ── Search ─────────────────────────────────────────────────────────────────────
 @app.route('/search/<query>')
 def search_ticker(query):
     try:
-        ticker    = yf.Ticker(query, session=session)
+        ticker    = yf.Ticker(query)
         info      = ticker.info
         name      = info.get("shortName") or info.get("longName") or query
         currency  = info.get("currency","USD")
         qtype     = info.get("quoteType","")
         exchange  = info.get("exchange","")
 
-        if query.upper().endswith((".NS",".BO")):     market = "IN"
+        if query.upper().endswith((".NS",".BO")):    market = "IN"
         elif query.upper().endswith(".L"):           market = "UK"
         elif qtype == "CRYPTOCURRENCY":              market = "CRYPTO"
         elif qtype == "CURRENCY" or "=X" in query:  market = "FX"
