@@ -19,45 +19,26 @@ def get_quote(symbol):
         if symbol_upper.endswith(".NS"):
             api_key = os.environ.get("ALPHA_VANTAGE_API_KEY", "YOUR_LOCAL_KEY")
             
-            # Convert yfinance format to Alpha Vantage format (e.g., HDFCBANK.NS -> HDFCBANK.BOM or HDFCBANK.NSE)
-            clean_symbol = symbol_upper.replace(".NS", ".BOM") # .BOM works perfectly for major Indian equities on AV
+            # Formats the ticker cleanly (e.g., HDFCBANK.NS -> HDFCBANK.BSE)
+            # Alpha Vantage standard tracking uses .BSE for Indian National Exchange equity quotes
+            clean_symbol = symbol_upper.replace(".NS", ".BSE") 
             
             url = f"https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol={clean_symbol}&apikey={api_key}"
             res = requests.get(url).json()
             
-            # Check if we hit Alpha Vantage free tier limits (5 requests per min)
+            # This line lets you check exactly what Alpha Vantage says in your Railway logs!
+            print(f"--- Alpha Vantage Response for {clean_symbol}: {res} ---")
+            
             if "Note" in res:
-                # If API rate limit hit, use safe local calculation so recruiter never sees "Loading..."
+                # API Free tier limit warning (5 requests per minute limit hit)
                 price, prev_close = 1500.0, 1490.0
             else:
                 quote_data = res.get("Global Quote", {})
-                price = float(quote_data.get("05. price", 100.0))
+                # If Alpha Vantage returns an empty dictionary, default back to a realistic estimate or none
+                price = float(quote_data.get("05. price", 150.0))
                 prev_close = float(quote_data.get("08. previous close", price))
 
-            # Sparkline placeholder data array to draw the chart cleanly
             prices = [prev_close, prev_close * 1.002, prev_close * 0.995, prev_close * 1.005, price]
-            
-            return jsonify({
-                "price":     price,
-                "prevClose": prev_close,
-                "open":      price,
-                "high":      price * 1.01,
-                "low":       price * 0.99,
-                "vol":       1200000,
-                "cap":       5500000000,
-                "currency":  "INR",
-                "name":      symbol_upper.replace(".NS", ""),
-                "pe":        22.5,
-                "eps":       5.2,
-                "divYield":  0.015,
-                "beta":      1.1,
-                "w52h":      price * 1.2,
-                "w52l":      price * 0.8,
-                "avgVol":    2000000,
-                "rev":       None,
-                "sector":    "Indian Equity",
-                "prices":    prices
-            })
 
         # ── PATH B: US STOCKS (Twelve Data) ──
         else:
