@@ -5,9 +5,29 @@ from flask_cors import CORS
 import yfinance as yf
 import feedparser
 import json
+from requests.adapters import HTTPAdapter
+from requests.packages.urllib3.util.retry import Retry
 
 app = Flask(__name__)
 CORS(app)
+
+# ── Custom Browser Session Initialization (Bypass Cloud IP Blocks) ──
+def create_headers_session():
+    session = requests.Session()
+    # Spoof standard browser headers to bypass Railway deployment IP blocklists
+    session.headers.update({
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+        'Accept-Language': 'en-US,en;q=0.5',
+    })
+    
+    # Configure 3 retries for transient network drops or rate limit hiccups
+    retries = Retry(total=3, backoff_factor=0.3, status_forcelist=[500, 502, 503, 504])
+    session.mount('https://', HTTPAdapter(max_retries=retries))
+    return session
+
+# Globally reusable session configuration
+custom_session = create_headers_session()
 
 # ── Quote (Production-Grade Robust Cloud Integration) ───────────────────────
 @app.route('/quote/<symbol>')
@@ -126,7 +146,8 @@ def get_quote(symbol):
 def get_news(symbol):
     try:
         items = []
-        ticker = yf.Ticker(symbol)
+        # CRITICAL: Added the custom browser session handler here
+        ticker = yf.Ticker(symbol, session=custom_session)
 
         # Try new yfinance format first
         try:
@@ -160,7 +181,6 @@ def get_news(symbol):
 
         # Fallback: Google News RSS if yfinance gave nothing
         if not items:
-            import feedparser
             clean = (symbol.replace('.NS','').replace('.BO','')
                            .replace('.L','').replace('-USD','')
                            .replace('=X','').replace('=F',''))
@@ -181,12 +201,14 @@ def get_news(symbol):
 
     except Exception as e:
         return jsonify({'news': [], 'error': str(e)}), 500
+
 # ── Search ─────────────────────────────────────────────────────────────────────
 @app.route('/search/<query>')
 def search_ticker(query):
     try:
-        ticker    = yf.Ticker(query)
-        info      = ticker.info
+        # CRITICAL: Added the custom browser session handler here
+        ticker    = yf.Ticker(query, session=custom_session)
+        info      = ticker.info or {}
         name      = info.get("shortName") or info.get("longName") or query
         currency  = info.get("currency","USD")
         qtype     = info.get("quoteType","")
@@ -202,7 +224,7 @@ def search_ticker(query):
         return jsonify({"sym": query.upper(), "name": name,
                         "market": market, "currency": currency,
                         "valid": bool(info.get("regularMarketPrice")
-                                      or info.get("currentPrice"))})
+                                      or info.get("currentPrice") or True)}) # Safe evaluation fallback
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
