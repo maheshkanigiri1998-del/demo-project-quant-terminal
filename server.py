@@ -8,6 +8,7 @@ app = Flask(__name__)
 CORS(app)
 
 # ── Quote ──────────────────────────────────────────────────────────────────────
+# ── Quote ──────────────────────────────────────────────────────────────────────
 @app.route('/quote/<symbol>')
 def get_quote(symbol):
     try:
@@ -16,31 +17,30 @@ def get_quote(symbol):
         hist   = ticker.history(period="5d", interval="1d")
         prices = hist['Close'].dropna().tolist()
 
-        price = (info.get("currentPrice") or info.get("regularMarketPrice")
-                 or info.get("navPrice") or (prices[-1] if prices else None))
-        prev  = (info.get("previousClose") or info.get("regularMarketPreviousClose")
-                 or (prices[-2] if len(prices) >= 2 else None))
+        # Extract values cleanly from fast_info attributes
+        price = getattr(info, "last_price", None) or (prices[-1] if prices else None)
+        prev  = getattr(info, "previous_close", None) or (prices[-2] if len(prices) >= 2 else None)
 
         return jsonify({
-            "price":    price,
-            "prevClose":prev,
-            "open":     info.get("open")     or info.get("regularMarketOpen"),
-            "high":     info.get("dayHigh")  or info.get("regularMarketDayHigh"),
-            "low":      info.get("dayLow")   or info.get("regularMarketDayLow"),
-            "vol":      info.get("volume")   or info.get("regularMarketVolume"),
-            "cap":      info.get("marketCap"),
-            "currency": info.get("currency", "USD"),
-            "name":     info.get("shortName") or info.get("longName") or symbol,
-            "pe":       info.get("trailingPE"),
-            "eps":      info.get("trailingEps"),
-            "divYield": info.get("dividendYield"),
-            "beta":     info.get("beta"),
-            "w52h":     info.get("fiftyTwoWeekHigh"),
-            "w52l":     info.get("fiftyTwoWeekLow"),
-            "avgVol":   info.get("averageVolume") or info.get("averageDailyVolume10Day"),
-            "rev":      info.get("totalRevenue"),
-            "sector":   info.get("sector",""),
-            "prices":   prices
+            "price":     price,
+            "prevClose": prev,
+            "open":      getattr(info, "open", None),
+            "high":      getattr(info, "day_high", None),
+            "low":       getattr(info, "day_low", None),
+            "vol":       getattr(info, "last_volume", None),
+            "cap":       getattr(info, "market_cap", None),
+            "currency":  "USD" if not symbol.endswith(".NS") else "INR",
+            "name":      symbol,
+            "pe":        None,
+            "eps":       None,
+            "divYield":  None,
+            "beta":      None,
+            "w52h":      getattr(info, "year_high", None),
+            "w52l":      getattr(info, "year_low", None),
+            "avgVol":    getattr(info, "three_month_average_volume", None),
+            "rev":       None,
+            "sector":    "",
+            "prices":    prices
         })
     except Exception as e:
         return jsonify({"error": str(e)}), 500
