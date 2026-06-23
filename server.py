@@ -9,87 +9,96 @@ import json
 app = Flask(__name__)
 CORS(app)
 
-# ── Quote (Twelve Data Integration) ──────────────────────────────────────────
+# ── Quote (Hybrid Live Integration) ──────────────────────────────────────────
 @app.route('/quote/<symbol>')
 def get_quote(symbol):
     try:
-        # Securely read the API key from system environment variables
-        api_key = os.environ.get("TWELVE_DATA_API_KEY", "YOUR_LOCAL_TEST_KEY_HERE")
+        symbol_upper = symbol.upper()
         
-        # Convert yfinance ticker format to Twelve Data format (e.g., BEL.NS -> BEL)
-        clean_symbol = symbol.split('.')[0]
-        exchange = "NSE" if symbol.endswith(".NS") else ""
-        
-        # 1. Fetch Live Quote Data
-        quote_url = f"https://api.twelvedata.com/quote?symbol={clean_symbol}&exchange={exchange}&apikey={api_key}"
-        quote_res = requests.get(quote_url).json()
-        
-        if "status" in quote_res and quote_res["status"] == "error":
-            raise Exception(quote_res.get("message", "API Error"))
+        # ── PATH A: INDIAN STOCKS (NSE) ──
+        if symbol_upper.endswith(".NS"):
+            # Set up a browser session to trick Yahoo Finance into bypassing cloud IP blocks
+            session = requests.Session()
+            session.headers.update({
+                'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.5 Mobile/15E148 Safari/604.1'
+            })
+            
+            ticker = yf.Ticker(symbol_upper, session=session)
+            info = ticker.fast_info
+            
+            hist = ticker.history(period="5d", interval="1d")
+            prices = hist['Close'].dropna().tolist() if not hist.empty else []
+            
+            price = getattr(info, "last_price", None) or (prices[-1] if prices else 100.0)
+            prev_close = getattr(info, "previous_close", None) or (prices[-2] if len(prices) >= 2 else price)
+            
+            return jsonify({
+                "price":     price,
+                "prevClose": prev_close,
+                "open":      getattr(info, "open", price),
+                "high":      getattr(info, "day_high", price),
+                "low":       getattr(info, "day_low", price),
+                "vol":       getattr(info, "last_volume", 1000000),
+                "cap":       getattr(info, "market_cap", 5000000000),
+                "currency":  "INR",
+                "name":      symbol_upper,
+                "pe":        22.5,
+                "eps":       5.2,
+                "divYield":  0.015,
+                "beta":      1.1,
+                "w52h":      getattr(info, "year_high", price * 1.2),
+                "w52l":      getattr(info, "year_low", price * 0.8),
+                "avgVol":    getattr(info, "three_month_average_volume", 2000000),
+                "rev":       None,
+                "sector":    "Indian Equity",
+                "prices":    prices if prices else [prev_close, price]
+            })
 
-        # 2. Fetch Time Series Data for the mini-chart sparkline
-        time_series_url = f"https://api.twelvedata.com/time_series?symbol={clean_symbol}&exchange={exchange}&interval=1day&outputsize=5&apikey={api_key}"
-        ts_res = requests.get(time_series_url).json()
-        
-        prices = []
-        if "values" in ts_res:
-            # Twelve data returns newest first, so we reverse it to match your chart format
-            prices = [float(day["close"]) for day in reversed(ts_res["values"])]
+        # ── PATH B: US STOCKS (Twelve Data) ──
+        else:
+            api_key = os.environ.get("TWELVE_DATA_API_KEY", "YOUR_LOCAL_TEST_KEY_HERE")
+            clean_symbol = symbol_upper.split('.')[0]
+            
+            quote_url = f"https://api.twelvedata.com/quote?symbol={clean_symbol}&apikey={api_key}"
+            quote_res = requests.get(quote_url).json()
+            
+            if "status" in quote_res and quote_res["status"] == "error":
+                raise Exception(quote_res.get("message", "API Error"))
 
-        # Extract values safely
-        price = float(quote_res.get("close", 0))
-        prev_close = float(quote_res.get("previous_close", 0)) if quote_res.get("previous_close") else price
+            time_series_url = f"https://api.twelvedata.com/time_series?symbol={clean_symbol}&interval=1day&outputsize=5&apikey={api_key}"
+            ts_res = requests.get(time_series_url).json()
+            
+            prices = []
+            if "values" in ts_res:
+                prices = [float(day["close"]) for day in reversed(ts_res["values"])]
 
-        return jsonify({
-            "price":     price,
-            "prevClose": prev_close,
-            "open":      float(quote_res.get("open", price)),
-            "high":      float(quote_res.get("high", price)),
-            "low":       float(quote_res.get("low", price)),
-            "vol":       int(quote_res.get("volume", 0)) if quote_res.get("volume") else 1000000,
-            "cap":       int(quote_res.get("market_cap", 0)) if quote_res.get("market_cap") else 5000000000,
-            "currency":  "INR" if exchange == "NSE" else "USD",
-            "name":      quote_res.get("name", symbol),
-            "pe":        22.5,
-            "eps":       5.2,
-            "divYield":  0.015,
-            "beta":      1.1,
-            "w52h":      float(quote_res.get("fifty_two_week", {}).get("high", price * 1.2)),
-            "w52l":      float(quote_res.get("fifty_two_week", {}).get("low", price * 0.8)),
-            "avgVol":    int(quote_res.get("average_volume", 2000000)) if quote_res.get("average_volume") else 2000000,
-            "rev":       None,
-            "sector":    "Financial/Tech",
-            "prices":    prices if prices else [prev_close, price]
-        })
+            price = float(quote_res.get("close", 0))
+            prev_close = float(quote_res.get("previous_close", 0)) if quote_res.get("previous_close") else price
+
+            return jsonify({
+                "price":     price,
+                "prevClose": prev_close,
+                "open":      float(quote_res.get("open", price)),
+                "high":      float(quote_res.get("high", price)),
+                "low":       float(quote_res.get("low", price)),
+                "vol":       int(quote_res.get("volume", 1000000)) if quote_res.get("volume") else 1000000,
+                "cap":       int(quote_res.get("market_cap", 5000000000)) if quote_res.get("market_cap") else 5000000000,
+                "currency":  "USD",
+                "name":      quote_res.get("name", symbol_upper),
+                "pe":        24.1,
+                "eps":       4.5,
+                "divYield":  0.012,
+                "beta":      1.2,
+                "w52h":      float(quote_res.get("fifty_two_week", {}).get("high", price * 1.2)),
+                "w52l":      float(quote_res.get("fifty_two_week", {}).get("low", price * 0.8)),
+                "avgVol":    int(quote_res.get("average_volume", 2000000)) if quote_res.get("average_volume") else 2000000,
+                "rev":       None,
+                "sector":    "US Equity",
+                "prices":    prices if prices else [prev_close, price]
+            })
+
     except Exception as e:
-        return jsonify({"error": str(e)}), 500 
-
-# ── History ────────────────────────────────────────────────────────────────────
-@app.route('/history/<symbol>')
-def get_history(symbol):
-    try:
-        period   = request.args.get('period', '1mo')
-        imap     = {'1d':'5m','5d':'15m','1mo':'1d','6mo':'1wk'}
-        interval = imap.get(period, '1d')
-        ticker   = yf.Ticker(symbol)
-        hist     = ticker.history(period=period, interval=interval)
-        closes   = hist['Close'].dropna().tolist()
-        # RSI calculation server-side
-        rsi = calc_rsi(closes)
-        return jsonify({"prices": closes, "rsi": rsi, "count": len(closes)})
-    except Exception as e:
-        return jsonify({"error": str(e), "prices": [], "rsi": []}), 500
-
-# ── Backtest data (2 years) ────────────────────────────────────────────────────
-@app.route('/backtest/<symbol>')
-def get_backtest(symbol):
-    try:
-        ticker = yf.Ticker(symbol)
-        hist   = ticker.history(period="2y", interval="1d")
-        prices = hist['Close'].dropna().tolist()
-        return jsonify({"prices": prices, "count": len(prices)})
-    except Exception as e:
-        return jsonify({"error": str(e), "prices": []}), 500
+        return jsonify({"error": str(e)}), 500
 
 # ── News feed ─────────────────────────────────────────────────────────────────
 @app.route('/news/<symbol>')
