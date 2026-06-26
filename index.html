@@ -546,7 +546,7 @@ canvas.rsichart{width:100%;height:100%;}
 // ─────────────────────────────────────────────
 
 // === PROXY CONFIG (Cloudflare Worker) ===
-const PROXY_BASE = 'https://qt-proxy.hahahahanotsomuch.workers.dev';
+const PROXY_BASE = 'https://corsproxy.io/?';
 // Mark backend as always-OK so no error banners
 const backendOK_dummy = true;
 document.getElementById('bsStatus').textContent = '⬤ Backend Live';
@@ -613,7 +613,7 @@ async function fetchQ(sym){
   try{
     // Use Yahoo chart endpoint for price (works browser-direct, no CORS block)
     const chartUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(sym)}?interval=1d&range=5d&includePrePost=false`;
-const proxiedChart = `${PROXY_BASE}?url=${encodeURIComponent(chartUrl)}`;
+const proxiedChart = `${PROXY_BASE}${encodeURIComponent(chartUrl)}`;
     const r = await fetch(proxiedChart, {headers:{'Accept':'application/json'}});
     if(!r.ok) throw new Error('HTTP '+r.status);
     const j = await r.json();
@@ -637,7 +637,7 @@ const proxiedChart = `${PROXY_BASE}?url=${encodeURIComponent(chartUrl)}`;
     let pe=null,eps=null,cap=null,divYield=null,beta=null,rev=null,sector=null,avgVol=null,longName=null;
     try{
       const sumUrl = `https://query1.finance.yahoo.com/v10/finance/quoteSummary/${encodeURIComponent(sym)}?modules=summaryDetail%2CdefaultKeyStatistics%2CfinancialData%2CassetProfile%2CpageViews`;
-const proxiedSum = `${PROXY_BASE}?url=${encodeURIComponent(sumUrl)}`;
+const proxiedSum = `${PROXY_BASE}${encodeURIComponent(sumUrl)}`;
       const sr = await fetch(proxiedSum, {headers:{'Accept':'application/json'}});
       if(sr.ok){
         const sj = await sr.json();
@@ -674,7 +674,7 @@ async function fetchH(sym, period){
     const range    = rangeMap[period]    || '1d';
     const interval = intervalMap[period] || '1d';
     const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(sym)}?interval=${interval}&range=${range}&includePrePost=false`;
-const proxied = `${PROXY_BASE}?url=${encodeURIComponent(url)}`;
+const proxied = `${PROXY_BASE}${encodeURIComponent(url)}`;
     const r = await fetch(proxied, {headers:{'Accept':'application/json'}});
     if(!r.ok) throw new Error('HTTP '+r.status);
     const j = await r.json();
