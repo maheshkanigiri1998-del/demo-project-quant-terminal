@@ -615,8 +615,7 @@ async function fetchQ(sym){
     const r = await fetch(chartUrl, {headers:{'Accept':'application/json'}});
     if(!r.ok) throw new Error('HTTP '+r.status);
     const j = await r.json();
-    const result = j.chart?.result?.[0];
-    const meta = result?.meta;
+    const meta = j.result?.[0]?.meta;
     if(!meta || !meta.regularMarketPrice) return null;
 
     const price    = meta.regularMarketPrice;
@@ -629,7 +628,7 @@ async function fetchQ(sym){
     const w52h     = meta.fiftyTwoWeekHigh;
     const w52l     = meta.fiftyTwoWeekLow;
     // Grab spark prices from the 5d range closes
-    const closes   = result?.indicators?.quote?.[0]?.close || [];
+    const closes   = j.result?.[0]?.indicators?.quote?.[0]?.close || [];
     const prices   = closes.filter(p => p != null);
 
     // Fetch summary details (PE, EPS, cap, beta etc.) — separate call
@@ -675,9 +674,8 @@ async function fetchH(sym, period){
     const r = await fetch(url, {headers:{'Accept':'application/json'}});
     if(!r.ok) throw new Error('HTTP '+r.status);
     const j = await r.json();
-    const result       = j.chart?.result?.[0];
-    const rawCloses    = result?.indicators?.quote?.[0]?.close || [];
-    const timestamps   = result?.timestamp || [];
+    const rawCloses    = j.result?.[0]?.indicators?.quote?.[0]?.close || [];
+    const timestamps   = j.result?.[0]?.timestamp || [];
     const prices       = rawCloses.filter(p => p != null);
     const rsi          = calcRSI(prices);
     return {prices, timestamps, rsi};
